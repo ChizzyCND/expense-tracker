@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Expense Tracker</title>
+    <meta
+      name="description"
+      content="Track income, expenses and balance in Naira. Works offline in your browser."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f766e'/%3E%3Ctext x='32' y='44' font-size='34' font-weight='700' text-anchor='middle' fill='white' font-family='Arial'%3E%E2%82%A6%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap"
+    />
+    <link rel="stylesheet" href="expense.css" />
+    <!-- Apply the saved theme before first paint to avoid a flash -->
+    <script>
+      try {
+        document.documentElement.dataset.theme =
+          localStorage.getItem("et-theme") ||
+          (matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light");
+      } catch (e) {}
+    </script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
+      defer
+    ></script>
+    <script src="expense.js" defer></script>
+  </head>
+  <body>
+    <!-- Icon sprite -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <symbol id="i-wallet" viewBox="0 0 24 24">
+          <path d="M3 7a2 2 0 0 1 2-2h13v4" />
+          <path
+            d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"
+          />
+          <circle cx="16" cy="14" r="1" />
+        </symbol>
+        <symbol id="i-in" viewBox="0 0 24 24">
+          <path d="M17 7 7 17M17 17H7V7" />
+        </symbol>
+        <symbol id="i-out" viewBox="0 0 24 24">
+          <path d="M7 17 17 7M7 7h10v10" />
+        </symbol>
+        <symbol id="i-list" viewBox="0 0 24 24">
+          <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+        </symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+        </symbol>
+        <symbol id="i-down" viewBox="0 0 24 24">
+          <path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16" />
+        </symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24">
+          <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" />
+        </symbol>
+        <symbol id="i-edit" viewBox="0 0 24 24">
+          <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <header class="top">
+      <a class="brand" href="#dashboard"
+        ><span class="mark" aria-hidden="true">₦</span>My Expense Tracker</a
+      >
+      <nav class="nav" aria-label="Sections">
+        <a href="#dashboard">Overview</a>
+        <a href="#add">Add</a>
+        <a href="#analytics">Analytics</a>
+        <a href="#history">History</a>
+      </nav>
+      <div class="tools">
+        <button
+          class="icon-btn"
+          id="exportBtn"
+          type="button"
+          title="Export CSV"
+          aria-label="Export transactions to CSV"
+        >
+          <svg class="ic"><use href="#i-down" /></svg>
+        </button>
+        <button
+          class="icon-btn"
+          id="themeBtn"
+          type="button"
+          title="Switch light/dark mode"
+          aria-label="Switch light or dark mode"
+        >
+          <svg class="ic"><use href="#i-moon" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <div class="banner" id="sampleBanner" hidden>
+        <span
+          >You are viewing sample transactions so you can explore the app.</span
+        >
+        <button class="btn small" id="clearSample" type="button">
+          Clear sample data
+        </button>
+      </div>
+
+      <!-- Dashboard -->
+      <section id="dashboard" class="cards" aria-label="Summary">
+        <article class="card balance">
+          <span class="ic-wrap"
+            ><svg class="ic"><use href="#i-wallet" /></svg
+          ></span>
+          <p>Total balance</p>
+          <strong id="balance">₦0.00</strong>
+        </article>
+        <article class="card">
+          <span class="ic-wrap inc"
+            ><svg class="ic"><use href="#i-in" /></svg
+          ></span>
+          <p>Total income</p>
+          <strong id="income">₦0.00</strong>
+        </article>
+        <article class="card">
+          <span class="ic-wrap exp"
+            ><svg class="ic"><use href="#i-out" /></svg
+          ></span>
+          <p>Total expenses</p>
+          <strong id="expenses">₦0.00</strong>
+        </article>
+        <article class="card">
+          <span class="ic-wrap"
+            ><svg class="ic"><use href="#i-list" /></svg
+          ></span>
+          <p>Transactions</p>
+          <strong id="count">0</strong>
+        </article>
+      </section>
+
+      <div class="grid2">
+        <!-- Add / edit form -->
+        <section id="add" class="panel">
+          <h2 id="formTitle">Add transaction</h2>
+          <form id="form" novalidate>
+            <div class="seg" role="radiogroup" aria-label="Transaction type">
+              <label
+                ><input type="radio" name="type" value="expense" checked /><span
+                  >Expense</span
+                ></label
+              >
+              <label
+                ><input type="radio" name="type" value="income" /><span
+                  >Income</span
+                ></label
+              >
+            </div>
+            <label
+              >Description
+              <input
+                id="desc"
+                maxlength="60"
+                autocomplete="off"
+                placeholder="e.g. Market shopping"
+              />
+            </label>
+            <div class="row">
+              <label
+                >Amount (₦)
+                <input
+                  id="amount"
+                  type="number"
+                  inputmode="decimal"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+              </label>
+              <label
+                >Date
+                <input id="date" type="date" />
+              </label>
+            </div>
+            <label
+              >Category
+              <select id="category"></select>
+            </label>
+            <p class="error" id="formError" role="alert"></p>
+            <div class="row actions">
+              <button class="btn primary" id="saveBtn" type="submit">
+                Add transaction
+              </button>
+              <button class="btn" id="cancelEdit" type="button" hidden>
+                Cancel
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Monthly summary -->
+        <section id="monthly" class="panel">
+          <div class="panel-head">
+            <h2>Monthly summary</h2>
+            <input id="month" type="month" aria-label="Choose month" />
+          </div>
+          <dl class="stats">
+            <div>
+              <dt>Income</dt>
+              <dd id="mIncome" class="inc">₦0.00</dd>
+            </div>
+            <div>
+              <dt>Expenses</dt>
+              <dd id="mExpense" class="exp">₦0.00</dd>
+            </div>
+            <div>
+              <dt>Net savings</dt>
+              <dd id="mNet">₦0.00</dd>
+            </div>
+            <div>
+              <dt>Transactions</dt>
+              <dd id="mCount">0</dd>
+            </div>
+            <div class="full">
+              <dt>Biggest expense category</dt>
+              <dd id="mTop">—</dd>
+            </div>
+          </dl>
+        </section>
+      </div>
+
+      <!-- Analytics -->
+      <section id="analytics" class="charts" aria-label="Analytics">
+        <article class="panel">
+          <h2>Income vs expenses</h2>
+          <div class="chart-box">
+            <canvas
+              id="chartTotals"
+              aria-label="Income versus expenses chart"
+              role="img"
+            ></canvas>
+            <p class="nodata" hidden></p>
+          </div>
+        </article>
+        <article class="panel">
+          <h2>Expenses by category</h2>
+          <div class="chart-box">
+            <canvas
+              id="chartCats"
+              aria-label="Expense breakdown by category"
+              role="img"
+            ></canvas>
+            <p class="nodata" hidden></p>
+          </div>
+        </article>
+        <article class="panel wide">
+          <h2>Monthly trend (last 6 months)</h2>
+          <div class="chart-box">
+            <canvas
+              id="chartTrend"
+              aria-label="Monthly income and spending trend"
+              role="img"
+            ></canvas>
+            <p class="nodata" hidden></p>
+          </div>
+        </article>
+      </section>
+
+      <!-- History -->
+      <section id="history" class="panel">
+        <h2>Transaction history</h2>
+        <div class="filters">
+          <input
+            id="search"
+            type="search"
+            placeholder="Search description or category"
+            aria-label="Search transactions"
+          />
+          <select id="fType" aria-label="Filter by type">
+            <option value="">All types</option>
+            <option value="income">Income</option>
+            <option value="expense">Expenses</option>
+          </select>
+          <select id="fCat" aria-label="Filter by category"></select>
+          <label class="inl">From <input type="date" id="fFrom" /></label>
+          <label class="inl">To <input type="date" id="fTo" /></label>
+          <button class="btn small" id="resetFilters" type="button">
+            Reset
+          </button>
+        </div>
+        <p class="muted" id="resultCount"></p>
+
+        <div class="table-wrap" id="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Date</th>
+                <th>Type</th>
+                <th class="num">Amount</th>
+                <th><span class="sr">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+
+        <div class="empty" id="empty" hidden>
+          <span class="ic-wrap big"
+            ><svg class="ic"><use href="#i-list" /></svg
+          ></span>
+          <h3 id="emptyTitle"></h3>
+          <p id="emptyText"></p>
+          <div class="row center">
+            <a class="btn primary" id="emptyAdd" href="#add"
+              >Add a transaction</a
+            >
+            <button class="btn" id="loadSample" type="button">
+              Load sample data
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="confirm">
+      <form method="dialog">
+        <h3>Delete this transaction?</h3>
+        <p id="confirmText"></p>
+        <div class="row actions">
+          <button class="btn" value="cancel">Keep it</button>
+          <button class="btn danger" value="ok">Delete</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
